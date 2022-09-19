@@ -1,9 +1,9 @@
-// require('dotenv').config()
+require('dotenv').config()
 const express = require("express")
 const bodyParser = require("body-parser")
 const mongoose = require("mongoose")
-const encrypt = require("mongoose-encryption")
-const md5 = require('md5')
+const bcrypt = require("bcrypt")
+const saltRounds = 12
 
 
 const app = express()
@@ -15,7 +15,7 @@ app.set("view engine", "ejs")
 
 app.use(express.static("public"))
 
-mongoose.connect("mongodb://localhost:27017/userDB")
+mongoose.connect(process.env.MONGODB_URL)
 
 const userSchema = new mongoose.Schema({
     email: String,
@@ -41,23 +41,34 @@ app.get("/register", (req, res) => {
 
 
 app.post("/register", (req, res) => {
-    const newUser = new User({
-        email: req.body.username,
-        password: md5(req.body.password)
+    bcrypt.hash(req.body.password, saltRounds, (err, result) => {
+        const newUser = new User({
+            email: req.body.username,
+            password: result
+        })
+        newUser.save(err => {
+            if(!err) {
+                res.render("secrets")
+            } else {
+                console.log(err)
+            }
+        })
     })
-    newUser.save()
-    res.render("secrets")
 })
 
 app.post("/login", (req, res) => {
     User.findOne({email: req.body.username}, (err, user) => {
         if(!err) {
             if(user) {
-                if(user.password === md5(req.body.password)) {
-                    res.render("secrets")
-                } else {
-                    res.redirect('/login')
-                }
+                bcrypt.compare(req.body.password, user.password, (err, result) => {
+                    if(result === true) {
+                        res.render("secrets")
+                    } else {
+                        res.redirect("/login")
+                    }
+                })
+            } else {
+                res.redirect("/register")
             }
         } else {
             console.log(err)
