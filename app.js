@@ -64,8 +64,8 @@ passport.use(new GoogleStrategy({
     // userProfileUrl: "https://www.googleapis.com/oauth2/v3/userinfo"
   },
   function(accessToken, refreshToken, profile, cb) {
-    console.log(profile)
-    User.findOrCreate({ googleId: profile.id }, function (err, user) {
+    console.log(profile.emails)
+    User.findOrCreate({ username: profile.emails[0].value, googleId: profile.id }, function (err, user) {
       return cb(err, user);
     });
   }
@@ -75,11 +75,9 @@ app.get("/", (req, res) => {
     res.render("home")
 })
 
-app.get("/auth/google", passport.authenticate("google", { scope: ["profile"] }));
+app.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 
-app.get("/auth/google/secrets", 
-  passport.authenticate("google", { failureRedirect: "/login" }),
-  function(req, res) {
+app.get("/auth/google/secrets", passport.authenticate("google", { failureRedirect: "/login" }), function(req, res) {
     // Successful authentication, redirect secrets.
     res.redirect("/secrets");
   });
@@ -97,6 +95,14 @@ app.get("/secrets", (req, res) => {
         res.render("secrets")
     } else {
         res.redirect("/login")
+    }
+})
+
+app.get("/submit", (req, res) => {
+    if(req.isAuthenticated()) {
+        res.render("secrets")
+    } else {
+        res.redirect("login")
     }
 })
 
